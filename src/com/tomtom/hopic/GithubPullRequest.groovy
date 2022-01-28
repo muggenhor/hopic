@@ -21,17 +21,48 @@ import com.tomtom.hopic.BaseGitPullRequest
 public class GithubPullRequest extends BaseGitPullRequest {
   private String url
   private String credentialsId
-  private info = null
+  private String restUrl = null
+  private Map info = null
   private keyIds = [:]
 
   GithubPullRequest(steps, String url, String credentialsId, String refspec) {
     super(steps, refspec)
     this.url = url
     this.credentialsId = credentialsId
+
+    if (this.url != null) {
+      this.restUrl = url.replaceFirst(/^([^:]+:[\/]*)(.+?)\/(.+?)\/(.+?)\/pull\/(\d+)$/, '$1api.$2/repos/$3/$4/pulls/$5')
+    }
+  }
+
+  private def get_info(allow_cache = true) {
+    if (allow_cache && this.info) {
+      return this.info
+    }
+    if (url == null
+     || !url.contains('/pull/')) {
+     return null
+    }
+    def info = steps.readJSON(text: steps.httpRequest(
+        url: restUrl,
+        httpMode: 'GET',
+        authentication: credentialsId,
+      ).content)
+
+    info['author_time'] = info.getOrDefault('updated_at', String.format("@%.3f", steps.currentBuild.timeInMillis / 1000.0))
+    info['commit_time'] = String.format("@%.3f", steps.currentBuild.startTimeInMillis / 1000.0)
+    this.info = info
+    return info
   }
 
   @Override
   public Map apply(String cmd, String source_remote, pip_constraints_file) {
+    def change_request = this.get_info()
+    def extra_params = ''
+    if (change_request.containsKey('body')) {
+      extra_params += ' --description=' + shell_quote(change_request.body)
+    }
+
     if (this.source_commit == null) {
       // Pin to the head commit of the PR to ensure every node builds the same version, even when the PR gets updated while the build runs
       this.source_commit = this.current_source_commit(source_remote)
@@ -41,13 +72,16 @@ public class GithubPullRequest extends BaseGitPullRequest {
                                 + ' prepare-source-tree'
                                 + ' --author-name=' + shell_quote(steps.env.CHANGE_AUTHOR ?: "Unknown user")
                                 + ' --author-email=' + shell_quote(steps.env.CHANGE_AUTHOR_EMAIL ?: "")
+                                + ' --author-date=' + shell_quote(change_request.author_time)
+                                + ' --commit-date=' + shell_quote(change_request.commit_time)
                                 + ' --bundle=' + shell_quote(merge_bundle)
                                 + (pip_constraints_file ? (' --constraints=' + pip_constraints_file) : '')
                                 + ' merge-change-request'
                                 + ' --source-remote=' + shell_quote(source_remote)
                                 + ' --source-ref=' + shell_quote(this.source_commit)
-                                + ' --change-request=' + shell_quote(steps.env.CHANGE_ID)
-                                + ' --title=' + shell_quote(steps.env.CHANGE_TITLE),
+                                + ' --change-request=' + shell_quote(change_request.getOrDefault('number', steps.env.CHANGE_ID))
+                                + ' --title=' + shell_quote(change_request.getOrDefault('title', steps.env.CHANGE_TITLE))
+                                + extra_params,
                           label: 'Hopic: preparing source tree',
                           returnStdout: true)).findAll{it.size() > 0}
     if (output.size() <= 0) {
