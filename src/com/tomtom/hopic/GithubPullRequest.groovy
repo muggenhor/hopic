@@ -22,6 +22,7 @@ public class GithubPullRequest extends BaseGitPullRequest {
   private String url
   private String credentialsId
   private String restUrl = null
+  private String baseRestUrl = null
   private Map info = null
   private keyIds = [:]
 
@@ -32,6 +33,7 @@ public class GithubPullRequest extends BaseGitPullRequest {
 
     if (this.url != null) {
       this.restUrl = url.replaceFirst(/^([^:]+:[\/]*)(.+?)\/(.+?)\/(.+?)\/pull\/(\d+)$/, '$1api.$2/repos/$3/$4/pulls/$5')
+      this.baseRestUrl = this.restUrl.replaceFirst(/\/repos\/.*$/, '')
     }
   }
 
@@ -48,6 +50,14 @@ public class GithubPullRequest extends BaseGitPullRequest {
         httpMode: 'GET',
         authentication: credentialsId,
       ).content)
+
+    if (info.getOrDefault('user', [:]).containsKey('login')) {
+      info['user'] = steps.readJSON(text: steps.httpRequest(
+          url: "${this.baseRestUrl}/users/${info.user.login}",
+          httpMode: 'GET',
+          authentication: credentialsId,
+        ).content)
+    }
 
     info['author_time'] = info.getOrDefault('updated_at', String.format("@%.3f", steps.currentBuild.timeInMillis / 1000.0))
     info['commit_time'] = String.format("@%.3f", steps.currentBuild.startTimeInMillis / 1000.0)
@@ -67,11 +77,12 @@ public class GithubPullRequest extends BaseGitPullRequest {
       // Pin to the head commit of the PR to ensure every node builds the same version, even when the PR gets updated while the build runs
       this.source_commit = this.current_source_commit(source_remote)
     }
+    def cr_author = change_request.getOrDefault('user', [:])
     def merge_bundle = steps.pwd(tmp: true) + '/merge-transfer.bundle'
     def output = line_split(steps.sh(script: cmd
                                 + ' prepare-source-tree'
-                                + ' --author-name=' + shell_quote(steps.env.CHANGE_AUTHOR ?: "Unknown user")
-                                + ' --author-email=' + shell_quote(steps.env.CHANGE_AUTHOR_EMAIL ?: "")
+                                + ' --author-name=' + shell_quote(cr_author.name ?: steps.env.CHANGE_AUTHOR ?: 'Unknown user')
+                                + ' --author-email=' + shell_quote(cr_author.email ?: steps.env.CHANGE_AUTHOR_EMAIL ?: '')
                                 + ' --author-date=' + shell_quote(change_request.author_time)
                                 + ' --commit-date=' + shell_quote(change_request.commit_time)
                                 + ' --bundle=' + shell_quote(merge_bundle)
