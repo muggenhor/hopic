@@ -25,6 +25,7 @@ import org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobP
 
 import com.tomtom.hopic.BitbucketPullRequest
 import com.tomtom.hopic.ChangeRequest
+import com.tomtom.hopic.GithubPullRequest
 import com.tomtom.hopic.ModalityRequest
 
 import com.tomtom.hopic.HopicEventCallbacks
@@ -99,7 +100,8 @@ class CiDriver {
   private def get_change() {
     if (this.change == null) {
       if (steps.env.CHANGE_URL != null
-       && steps.env.CHANGE_URL.contains('/pull-requests/'))
+       && (steps.env.CHANGE_URL.contains('/pull-requests/')
+        || steps.env.CHANGE_URL.contains('/pull/')))
       {
         def httpServiceCredential = this.scm.credentialsId
         try {
@@ -113,7 +115,11 @@ class CiDriver {
           /* Fall back when this credential isn't usable for HTTP(S) Basic Auth */
           httpServiceCredential = this.scm_api_credential_id
         }
-        this.change = new BitbucketPullRequest(steps, steps.env.CHANGE_URL, httpServiceCredential, this.scm.refspec)
+        if (steps.env.CHANGE_URL.contains('/pull-requests/')) {
+          this.change = new BitbucketPullRequest(steps, steps.env.CHANGE_URL, httpServiceCredential, this.scm.refspec)
+        } else if (steps.env.CHANGE_URL.contains('/pull/')) {
+          this.change = new GithubPullRequest(steps, steps.env.CHANGE_URL, httpServiceCredential, this.scm.refspec)
+        }
       }
       // FIXME: Don't rely on hard-coded build parameter, externalize this instead.
       else if (steps.env.MODALITY != null && steps.env.MODALITY != "NORMAL")
