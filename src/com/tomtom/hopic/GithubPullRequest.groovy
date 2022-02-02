@@ -78,11 +78,21 @@ public class GithubPullRequest extends BaseGitPullRequest {
       this.source_commit = this.current_source_commit(source_remote)
     }
     def cr_author = change_request.getOrDefault('user', [:])
+    def author_name = cr_author.name
+    if (!author_name || author_name == 'null')
+      author_name = steps.env.CHANGE_AUTHOR
+    if (!author_name || author_name == 'null')
+      author_name = 'Unknown user'
+    def author_email = cr_author.email
+    if (!author_email || author_email == 'null')
+      author_email = steps.env.CHANGE_AUTHOR_EMAIL
+    if (!author_email || author_email == 'null')
+      author_email = ''
     def merge_bundle = steps.pwd(tmp: true) + '/merge-transfer.bundle'
     def output = line_split(steps.sh(script: cmd
                                 + ' prepare-source-tree'
-                                + ' --author-name=' + shell_quote(cr_author.name ?: steps.env.CHANGE_AUTHOR ?: 'Unknown user')
-                                + ' --author-email=' + shell_quote(cr_author.email ?: steps.env.CHANGE_AUTHOR_EMAIL ?: '')
+                                + ' --author-name=' + shell_quote(author_name)
+                                + ' --author-email=' + shell_quote(author_email)
                                 + ' --author-date=' + shell_quote(change_request.author_time)
                                 + ' --commit-date=' + shell_quote(change_request.commit_time)
                                 + ' --bundle=' + shell_quote(merge_bundle)
