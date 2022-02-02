@@ -135,6 +135,18 @@ public class GithubPullRequest extends BaseGitPullRequest {
   }
 
   @Override
+  public boolean maySubmit(String target_commit, String source_commit, boolean allow_cache = true) {
+    if (!super.maySubmitImpl(target_commit, source_commit, allow_cache)) {
+      return false
+    }
+
+    // TODO: implement a PR merge policy configuration and evaluation framework and call that here
+    steps.println("\033[36m[info] not submitting because the GitHub merge criteria are unknown\033[39m")
+    steps.currentBuild.description = "Not submitting: GitHub merge criteria unknown"
+    return false
+  }
+
+  @Override
   public Map apply(String cmd, String source_remote, pip_constraints_file) {
     def change_request = this.get_info()
     def extra_params = ''
