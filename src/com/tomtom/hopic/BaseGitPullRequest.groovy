@@ -27,6 +27,28 @@ public class BaseGitPullRequest extends ChangeRequest {
     this.refspec = refspec
   }
 
+  @NonCPS
+  protected List find_username_replacements(String message) {
+    def m = message =~ /(?<!\\)(?<!\S)@(\w+)/
+
+    def user_replacements = []
+
+    m.each { match ->
+      def username = match[1]
+      if (!username) {
+        return
+      }
+
+      user_replacements.add([
+          username,
+          m.start(),
+          m.end(),
+      ])
+    }
+
+    return user_replacements
+  }
+
   protected def current_source_commit(String source_remote) {
     assert steps.env.NODE_NAME != null, "current_source_commit must be executed on a node"
     def (remote_ref, local_ref) = this.refspec.tokenize(':')

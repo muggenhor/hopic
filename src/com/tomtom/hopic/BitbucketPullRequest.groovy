@@ -40,28 +40,6 @@ public class BitbucketPullRequest extends BaseGitPullRequest {
     }
   }
 
-  @NonCPS
-  private List find_username_replacements(String message) {
-    def m = message =~ /(?<!\\)(?<!\S)@(\w+)/
-
-    def user_replacements = []
-
-    m.each { match ->
-      def username = match[1]
-      if (!username) {
-        return
-      }
-
-      user_replacements.add([
-          username,
-          m.start(),
-          m.end(),
-      ])
-    }
-
-    return user_replacements
-  }
-
   private def get_info(allow_cache = true) {
     if (allow_cache && this.info) {
       return this.info
