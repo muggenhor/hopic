@@ -59,6 +59,21 @@ public class GithubPullRequest extends BaseGitPullRequest {
         ).content)
     }
 
+    info['reviews'] = steps.readJSON(text: steps.httpRequest(
+        url: "${this.restUrl}/reviews",
+        httpMode: 'GET',
+        authentication: credentialsId,
+      ).content)
+    info.reviews.each { review ->
+      if (review.getOrDefault('user', [:]).containsKey('login')) {
+        review['user'] = steps.readJSON(text: steps.httpRequest(
+            url: "${this.baseRestUrl}/users/${review.user.login}",
+            httpMode: 'GET',
+            authentication: credentialsId,
+          ).content)
+      }
+    }
+
     // Expand '@user' tokens in pull request description to 'Full Name <Full.Name@example.com>'
     // because we don't have this mapping handy when reading git commit messages.
     if (info.containsKey('body')) {
@@ -119,6 +134,20 @@ public class GithubPullRequest extends BaseGitPullRequest {
     def extra_params = ''
     if (change_request.containsKey('body')) {
       extra_params += ' --description=' + shell_quote(change_request.body)
+    }
+
+    // Record approving reviewers for auditing purposes
+    def approvers = change_request.getOrDefault('reviews', []).findAll { review ->
+        review.state == 'APPROVED'
+      }.collect { review ->
+        def str = review.user.name
+        if (review.user.email && review.user.email != 'null') {
+          str = "${str} <${review.user.email}>"
+        }
+        return str + ':' + review.commit_id
+      }.sort()
+    approvers.each { approver ->
+      extra_params += ' --approved-by=' + shell_quote(approver)
     }
 
     if (this.source_commit == null) {
