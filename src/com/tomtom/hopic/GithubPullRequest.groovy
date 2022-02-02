@@ -59,6 +59,11 @@ public class GithubPullRequest extends BaseGitPullRequest {
         ).content)
     }
 
+    def users = [:]
+    if (info.getOrDefault('user', [:]).containsKey('name')) {
+      users[info.user.login] = info.user
+    }
+
     info['reviews'] = steps.readJSON(text: steps.httpRequest(
         url: "${this.restUrl}/reviews",
         httpMode: 'GET',
@@ -66,19 +71,20 @@ public class GithubPullRequest extends BaseGitPullRequest {
       ).content)
     info.reviews.each { review ->
       if (review.getOrDefault('user', [:]).containsKey('login')) {
-        review['user'] = steps.readJSON(text: steps.httpRequest(
-            url: "${this.baseRestUrl}/users/${review.user.login}",
-            httpMode: 'GET',
-            authentication: credentialsId,
-          ).content)
+        if (!users.containsKey(review.user.login)) {
+          users[review.user.login] = steps.readJSON(text: steps.httpRequest(
+              url: "${this.baseRestUrl}/users/${review.user.login}",
+              httpMode: 'GET',
+              authentication: credentialsId,
+            ).content)
+        }
+        review['user'] = users[review.user.login]
       }
     }
 
     // Expand '@user' tokens in pull request description to 'Full Name <Full.Name@example.com>'
     // because we don't have this mapping handy when reading git commit messages.
     if (info.containsKey('body')) {
-      def users = [:]
-
       def user_replacements = find_username_replacements(info.body)
 
       int last_idx = 0
