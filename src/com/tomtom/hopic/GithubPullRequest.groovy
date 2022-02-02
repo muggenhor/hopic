@@ -59,6 +59,54 @@ public class GithubPullRequest extends BaseGitPullRequest {
         ).content)
     }
 
+    // Expand '@user' tokens in pull request description to 'Full Name <Full.Name@example.com>'
+    // because we don't have this mapping handy when reading git commit messages.
+    if (info.containsKey('body')) {
+      def users = [:]
+
+      def user_replacements = find_username_replacements(info.body)
+
+      int last_idx = 0
+      String new_description = ''
+      user_replacements.each { repl ->
+        def (username, start, end) = repl
+        if (!users.containsKey(username)) {
+          def response = steps.httpRequest(
+              url: "${this.baseRestUrl}/users/${username}",
+              httpMode: 'GET',
+              authentication: credentialsId,
+              validResponseCodes: '200,404',
+            )
+          def json = response.content ? steps.readJSON(text: response.content) : [:]
+          if (response.status == 200) {
+            users[username] = json
+          } else {
+            steps.println("\033[31m[error] could not find GitHub user '${username}'\033[39m")
+          }
+        }
+
+        if (users.containsKey(username)) {
+          def user = users[username]
+
+          def str = user.getOrDefault('name', username)
+          if (user.email && user.email != 'null') {
+            str = "${str} <${user.email}>"
+          }
+
+          // Because Groovy is unable to obtain empty substrings
+          if (last_idx != start)
+            new_description = new_description + info.body[last_idx..start - 1]
+          new_description = new_description + str
+          last_idx = end
+        }
+      }
+
+      // Because Groovy is unable to obtain an empty trailing string
+      if (last_idx != info.body.length())
+        new_description = new_description + info.body[last_idx..-1]
+      info.body = new_description.replace('\r\n', '\n')
+    }
+
     info['author_time'] = info.getOrDefault('updated_at', String.format("@%.3f", steps.currentBuild.timeInMillis / 1000.0))
     info['commit_time'] = String.format("@%.3f", steps.currentBuild.startTimeInMillis / 1000.0)
     this.info = info
