@@ -16,6 +16,8 @@
 
 package com.tomtom.hopic
 
+import groovy.json.JsonOutput
+
 import com.tomtom.hopic.BaseGitPullRequest
 
 public class BitbucketPullRequest extends BaseGitPullRequest {
