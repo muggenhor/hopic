@@ -18,11 +18,11 @@ package com.tomtom.hopic
 
 import com.tomtom.hopic.ChangeRequest
 
-public class BaseGitPullRequest extends ChangeRequest {
+public class BasePullRequest extends ChangeRequest {
   protected String refspec = null
   protected String source_commit = null
 
-  BaseGitPullRequest(steps, String refspec) {
+  BasePullRequest(steps, String refspec) {
     super(steps)
     this.refspec = refspec
   }

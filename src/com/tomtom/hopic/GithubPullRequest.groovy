@@ -16,9 +16,9 @@
 
 package com.tomtom.hopic
 
-import com.tomtom.hopic.BaseGitPullRequest
+import com.tomtom.hopic.BasePullRequest
 
-public class GithubPullRequest extends BaseGitPullRequest {
+public class GithubPullRequest extends BasePullRequest {
   private String url
   private String credentialsId
   private String restUrl = null
