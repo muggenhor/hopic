@@ -32,6 +32,7 @@ public class GithubPullRequest extends BasePullRequest {
     this.credentialsId = credentialsId
 
     if (this.url != null) {
+      // transform e.g. https://github.com/tomtom-international/hopic/pull/42 to https://api.github.com/repos/tomtom-international/hopic/pulls/42
       this.restUrl = url.replaceFirst(/^([^:]+:[\/]*)(.+?)\/(.+?)\/(.+?)\/pull\/(\d+)$/, '$1api.$2/repos/$3/$4/pulls/$5')
       this.baseRestUrl = this.restUrl.replaceFirst(/\/repos\/.*$/, '')
     }
