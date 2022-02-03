@@ -53,6 +53,7 @@ public class ChangeRequest {
   }
 
   public void abort_if_changed(String source_remote) {
+    // Default NOP
   }
 
   public Map getinfo(String cmd) {
