@@ -182,7 +182,7 @@ phases:
           doc/build/html:
             commit-message: "Update documentation for ${VERSION}"
         with-credentials:
-          id: ssh_svc_bitbucket_access
+          id: github-deploy-muggenhor-hopic
           type: ssh-key
           ssh-command-variable: GIT_SSH
         sh: >
